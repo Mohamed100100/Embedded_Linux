@@ -1,8 +1,8 @@
 
 
-# Embedded Linux Task 1 - Admin Linux
+# Embedded Linux Task 3 - Admin Linux
 
-This repository contains the solutions and explanations for Task 1 related to Bash scripting, Linux commands, and shell behavior.
+This repository contains the solutions and explanations for Task 3 related to Bash scripting, Linux commands, and shell behavior.
 
 ---
 
@@ -203,21 +203,8 @@ ln /etc/passwd /boot/passwd_hardlink
 
 ### 9. Secondary Prompt (`>`)
 
-* Typing:
+It is a way to help me write commands in multiple lines. Yes, I can edit it using a global variable in the `.bashrc` script and set `PS2=":"`. This is the secondary prompt that appears when we use `\`.
 
-```bash
-echo \
-```
-
-* Bash prints `>` — this is the **secondary prompt** (`PS2`) that appears when a command is incomplete.
-
-* To change it from `>` to `:`:
-
-```bash
-PS2=": "
-```
-
-* **Explanation:** PS2 is used for multi-line commands, e.g., when a backslash `\` is used.
 
 ---
 
