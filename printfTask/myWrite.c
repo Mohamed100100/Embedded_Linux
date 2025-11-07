@@ -2,6 +2,8 @@
 #include <sys/syscall.h>
 #include <stddef.h>
 
+#include "myWrite.h"
+
 /**********************************************************************************
 ** arch	syscall NR	return	arg0	arg1	arg2	arg3	arg4	arg5
 ** arm	r7	r0	r0	r1	r2	r3	r4	r5
