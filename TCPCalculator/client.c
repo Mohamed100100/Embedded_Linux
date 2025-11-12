@@ -53,57 +53,51 @@ int main(int argc , char *argv[]) {
 
     char buf[BUF_SIZE];
     ssize_t bytesRead;
+	
+    // get the first num from the user (terminal)        
+    write(STDOUT_FILENO, "Enter first number: ", sizeof("Enter first number: "));
+    memset(buf, 0, BUF_SIZE);
+    bytesRead = read(STDIN_FILENO, buf, BUF_SIZE);
+    if (bytesRead <= 0) {
+       perror("read");
+       close(sockFd);
+       return(-1);
+    }
 
-  //  while (1) {
+    buf[strcspn(buf, "\n")] = '\0';
 
-	// get the first num from the user (terminal)    
-        write(STDOUT_FILENO, "Enter first number: ", sizeof("Enter first number: "));
-        memset(buf, 0, BUF_SIZE);
-        bytesRead = read(STDIN_FILENO, buf, BUF_SIZE);
-        if (bytesRead <= 0) {
-	   perror("read");
-	   close(sockFd);
-	   return(-1);
-	}
+    // send the number1 to the server
+    write(sockFd, buf, strlen(buf));
 
-        buf[strcspn(buf, "\n")] = '\0';
+    // get the second num from the user (terminal) 
+    write(STDOUT_FILENO, "Enter second number: ", sizeof("Enter second number: "));
+    memset(buf, 0, BUF_SIZE);
+    bytesRead = read(STDIN_FILENO, buf, BUF_SIZE);
+    if (bytesRead <= 0) {
+       perror("read");
+       close(sockFd);	   
+       return(-1);
+    }
 
-	// send the number1 to the server
-        write(sockFd, buf, strlen(buf));
+    buf[strcspn(buf, "\n")] = '\0';
 
-	// get the second num from the user (terminal) 
-        write(STDOUT_FILENO, "Enter second number: ", sizeof("Enter second number: "));
-        memset(buf, 0, BUF_SIZE);
-        bytesRead = read(STDIN_FILENO, buf, BUF_SIZE);
-        if (bytesRead <= 0) {
-	   perror("read");
-           close(sockFd);	   
-	   return(-1);
-	}
+    // send the number2 to the server
+    write(sockFd, buf, strlen(buf));
 
-        buf[strcspn(buf, "\n")] = '\0';
+    // read the result from the server
+    memset(buf, 0, BUF_SIZE);
+    bytesRead = read(sockFd, buf, BUF_SIZE);
+    if (bytesRead <= 0){
+	perror("read");
+	close(sockFd); 
+	return(-1);
+    }
+    // print the result at the terminal
+    write(STDOUT_FILENO, "Sum = ", sizeof("Sum = "));
+    write(STDOUT_FILENO, buf, bytesRead);
+    write(STDOUT_FILENO, "\n", sizeof("\n"));
+    close(sockFd);
 
-	// send the number2 to the server
-        write(sockFd, buf, strlen(buf));
-
-	// read the result from the server
-        memset(buf, 0, BUF_SIZE);
-        bytesRead = read(sockFd, buf, BUF_SIZE);
-        if (bytesRead <= 0){
-	   perror("read");
-	   close(sockFd); 
-	   return(-1);
-	}
-
-	// print the result at the terminal
-        write(STDOUT_FILENO, "Sum = ", sizeof("Sum = "));
-        write(STDOUT_FILENO, buf, bytesRead);
-        write(STDOUT_FILENO, "\n", sizeof("\n"));
-        close(sockFd);
-
-    //}
-    //}
-    //close(sockFd);
     return 0;
 }
 
