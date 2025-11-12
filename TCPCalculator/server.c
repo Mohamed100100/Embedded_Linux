@@ -1,111 +1,109 @@
-#include <sys/types.h>          
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
-#include <stdlib.h>   
+#include <stdlib.h>
 #include <string.h>
-#define STDOUT		(1)
-#define BACKLOG		(4)
-#define BUF_SIZE	(100)
 
-int main(int argc , char *argv[]){
+#define STDOUT  (1)
+#define BACKLOG (4)
+#define BUF_SIZE (100)
 
-   if(argc != 3){
-      write(1," f",sizeof(" f"));
-      return (-1);
-   }
+int main(int argc , char *argv[]) {
+    if (argc != 3) {
+        write(STDOUT, "Usage: ./server <IP> <PORT>\n", 29);
+        return -1;
+    }
 
-   
-   int sockFd = socket(AF_INET, SOCK_STREAM ,0);
+    int sockFd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockFd == -1) {
+        perror("socket");
+        return -1;
+    }
 
-   if(-1 == sockFd){
-      perror("socket : "); 
-      return (-1);
-   }
 
-   write(STDOUT,"The Socket is created Successfully\n",sizeof("The Socket is created Successfully\n"));
-
-   struct sockaddr_in address ;
-
-   address.sin_family = AF_INET;
-   address.sin_port   = htons((uint16_t)atoi(argv[2]));
-
-   if (inet_pton(AF_INET, argv[1], &address.sin_addr) <= 0) {
-      perror("inet_pton");
-      return(-1);
-   }
-
-   int bindstat = bind(sockFd, (struct sockaddr *)&address ,sizeof(address));
-
-   if(-1 == bindstat){
-      perror("bind : ");
-      return (-1);
-   }
-
-   /********************************************************************************/
-   write(STDOUT,"The Server is binding to ",sizeof("The Server is binding to "));
-   write(STDOUT,argv[1],strlen(argv[1]));
-   write(STDOUT,":",sizeof(":"));
-   write(STDOUT,argv[2],strlen(argv[2]));
-   write(STDOUT,"\n",sizeof("\n"));
+   /*************************** Socket Created successfully ************************/
+    write(STDOUT,"The Socket is created Successfully\n",sizeof("The Socket is created Successfully\n"));
    /********************************************************************************/
 
-   int listenStat = listen(sockFd, BACKLOG);
+    struct sockaddr_in address;
+    address.sin_family  = AF_INET;
+    address.sin_port    = htons((uint16_t)atoi(argv[2]));
+    if (inet_pton(AF_INET, argv[1], &address.sin_addr) <= 0) {
+        perror("inet_pton");
+        return -1;
+    }
 
-   if(-1 == listenStat){
-      perror("listen : ");
-      return (-1);
-   }
+    if (bind(sockFd, (struct sockaddr *)&address, sizeof(address)) == -1) {
+        perror("bind");
+        return -1;
+    }
+   /*************************** Binding successfully *******************************/ 
+    write(STDOUT,"The Server is binding to ",sizeof("The Server is binding to ")); 
+    write(STDOUT,argv[1],strlen(argv[1])); 
+    write(STDOUT,":",sizeof(":")); 
+    write(STDOUT,argv[2],strlen(argv[2])); 
+    write(STDOUT,"\n",sizeof("\n")); 
+   /********************************************************************************/
 
-   write(STDOUT,"The Server is listening\n",sizeof("The Server is listening\n"));
-   struct sockaddr_in client_addr;
+    listen(sockFd, BACKLOG);
 
+   /*************************** Listening successfully ******************************/
+    write(STDOUT, "Server listening...\n", sizeof("Server listening...\n"));
+   /*********************************************************************************/
+    char buf[BUF_SIZE];
+    int clientFd;
+    ssize_t n;
+    char str[2];
+    int num1;
+    int num2;
 
-   char buf[BUF_SIZE] = {'\0'};
-   ssize_t n;
-   int clientFd;
+    while (1) {
+        clientFd = accept(sockFd, NULL, NULL);
+        if (clientFd == -1) {
+            perror("accept");
+            continue;
+        }
 
-   while (1) {
+        write(STDOUT, "Client connected\n", sizeof("Client connected\n"));
 
-      write(STDOUT,"waiting......\n",sizeof("waiting......\n"));
+	// receive the first number
+        memset(buf, 0, BUF_SIZE);
+        n = read(clientFd, buf, BUF_SIZE);
+        if (n <= 0){ 
+	   perror("read");
+	   close(clientFd);
+           continue;
+	}
 
-      clientFd = accept(sockFd,NULL,NULL);
-      
-      if (clientFd == -1){
-         perror("accept : ");
-         return (-1);
-      }
+	// convert first number from string to int
+        num1 = atoi(buf);
 
-      write(STDOUT,"Connected Successfully\n",sizeof("Connected Successfully\n"));
+	// receive the second number
+        memset(buf, 0, BUF_SIZE);
+        n = read(clientFd, buf, BUF_SIZE);
+        if (n <= 0){ 
+	   perror("read");
+           close(clientFd);
+	   continue;
+	}
 
-      n = read(clientFd, buf, BUF_SIZE);
-      if(n == -1) {
-         perror("read");
-         break;
-      }
+	// convert second number from string to int
+        num2 = atoi(buf);
 
-      int num1 = atoi(buf);
+	// convert the result to string
+	sprintf(str,"%d",num1+num2);
 
-      n = read(clientFd, buf, BUF_SIZE);
-      if(n == -1) {
-         perror("read");
-         break;
-      }
+	// send the result to the client
+        write(clientFd, str, strlen(str));
 
-      int num2 = atoi(buf);
+	// after finish close the client socket
+        close(clientFd);
+    }
 
-      char str[20];
-
-      sprintf(str, "%d", num1+num2);   // Convert int → string
-         
-
-     n = write(clientFd, str, sizeof(str)); 
-      if (n == -1) {
-         perror("write");
-      }
-
-      close(clientFd);
-   }   
+    close(sockFd);
+    return 0;
 }
+
