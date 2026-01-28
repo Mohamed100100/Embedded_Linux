@@ -60,8 +60,9 @@ void CapsLockWaiterCallable(std::mutex &mx, std::condition_variable &cv)
 
     while(1)
     {
-
+        ul.lock();
         cv.wait(ul, []{ return flag; }); 
+        ul.unlock();
         // read the shared resource
         flag = false;
         std::cout << "Caps Lock : " << ((capsLockState=='0') ? "OFF" : "ON") << std::endl;
