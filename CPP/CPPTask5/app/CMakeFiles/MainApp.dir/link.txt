@@ -1,0 +1,1 @@
+/home/gemy/x-tools/aarch64-rpi3-linux-gnu/bin/aarch64-rpi3-linux-gnu-g++ CMakeFiles/MainApp.dir/main.cpp.o -o MainApp  -Wl,-rpath,/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/CPPTask5/src ../src/libSevenSegmentLib.so 

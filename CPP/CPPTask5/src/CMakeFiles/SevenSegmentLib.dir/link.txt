@@ -1,0 +1,1 @@
+/home/gemy/x-tools/aarch64-rpi3-linux-gnu/bin/aarch64-rpi3-linux-gnu-g++ -fPIC -shared -Wl,-soname,libSevenSegmentLib.so -o libSevenSegmentLib.so CMakeFiles/SevenSegmentLib.dir/Stream.cpp.o CMakeFiles/SevenSegmentLib.dir/IStream.cpp.o CMakeFiles/SevenSegmentLib.dir/OStream.cpp.o CMakeFiles/SevenSegmentLib.dir/SevenSegment.cpp.o 

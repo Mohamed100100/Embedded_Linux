@@ -1,0 +1,11 @@
+/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/CPPTask5/CMakeFiles/deploy.dir
+/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/CPPTask5/CMakeFiles/deploy-app.dir
+/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/CPPTask5/CMakeFiles/deploy-lib.dir
+/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/CPPTask5/CMakeFiles/edit_cache.dir
+/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/CPPTask5/CMakeFiles/rebuild_cache.dir
+/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/CPPTask5/src/CMakeFiles/SevenSegmentLib.dir
+/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/CPPTask5/src/CMakeFiles/edit_cache.dir
+/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/CPPTask5/src/CMakeFiles/rebuild_cache.dir
+/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/CPPTask5/app/CMakeFiles/MainApp.dir
+/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/CPPTask5/app/CMakeFiles/edit_cache.dir
+/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/CPPTask5/app/CMakeFiles/rebuild_cache.dir
