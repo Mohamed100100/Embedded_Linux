@@ -1,4 +1,3 @@
----
 
 ### **1. What is initramfs? Why use it instead of mounting the real rootfs directly?**
 
@@ -15,8 +14,6 @@
 * Acts as a **bridge** between kernel start and real rootfs
 
 💡 Without initramfs → kernel may fail to mount `/dev/mmcblk0p2` because the driver isn’t loaded yet.
-
----
 
 ### **2. Why cpio format for initramfs? Why not tar or zip?**
 

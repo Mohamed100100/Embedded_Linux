@@ -1,4 +1,3 @@
----
 
 ## **1. Monolithic vs Microkernel — Where does Linux stand?**
 
