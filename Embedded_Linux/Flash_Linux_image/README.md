@@ -1,211 +1,480 @@
+# 🚀 Raspberry Pi 3 B+ Embedded Linux from Scratch
 
->> 1. create symbolic link for the u-boot and linux kernel repositories
+A complete guide to building and deploying a custom embedded Linux system on Raspberry Pi 3 Model B+ — including U-Boot, Linux kernel, BusyBox rootfs, and multiple boot methods (SD card, TFTP, NFS, initramfs).
 
-realpath ../../../../Embedded_Linux_WS/Linux_Kernel/linux/
-realpath ../../../../Embedded_Linux_WS/uboot/u-boot/
-readpath ../../../../Embedded_Linux_WS/Busybox/busybox/
+---
 
-ln -s /media/gemy/Linux_Workspace/ITI/Eng_Fady/Embedded_Linux_WS/uboot/u-boot uboot_repo_Slink
+## 📋 Table of Contents
 
-ln -s /media/gemy/Linux_Workspace/ITI/Eng_Fady/Embedded_Linux_WS/Linux_Kernel/linux linux_repo_Slink
+- [Prerequisites](#prerequisites)
+- [Project Structure](#project-structure)
+- [1. Repository Setup](#1-repository-setup)
+- [2. Build the Linux Kernel](#2-build-the-linux-kernel)
+- [3. Build BusyBox Root Filesystem](#3-build-busybox-root-filesystem)
+- [4. Prepare Boot Files](#4-prepare-boot-files)
+- [5. Boot Methods](#5-boot-methods)
+  - [5.1 SD Card Boot](#51-sd-card-boot)
+  - [5.2 TFTP Boot](#52-tftp-boot)
+  - [5.3 NFS Root Filesystem](#53-nfs-root-filesystem)
+  - [5.4 Initramfs Boot](#54-initramfs-boot)
+- [6. Flash to SD Card](#6-flash-to-sd-card)
+- [Serial Console Configuration](#serial-console-configuration)
+- [Troubleshooting](#troubleshooting)
 
-ln -s /media/gemy/Linux_Workspace/ITI/Eng_Fady/Embedded_Linux_WS/Busybox/busybox busybox_repo_Slink
+---
 
->> 2. create the bootfs and rootfs directories to hold the files that will be copied to the sdcard
+## Prerequisites
+
+| Tool | Purpose |
+|------|---------|
+| `aarch64-rpi3-linux-gnu-` cross-compiler | Cross-compilation toolchain (crosstool-NG) |
+| `mkimage` | U-Boot image creation tool |
+| `minicom` / `picocom` | Serial console terminal |
+| `tftpd-hpa` | TFTP server for network boot |
+| `nfs-kernel-server` | NFS server for network root filesystem |
+| USB-to-Serial adapter | UART connection to RPi3 |
+
+---
+
+## Project Structure
+
+```
+Flash_Linux_image/
+├── boot.cmd                    # U-Boot boot script source
+├── boot.scr                    # Compiled U-Boot boot script
+├── initramfs.cpio.gz           # Compressed initramfs archive
+├── uInitramfs                  # U-Boot wrapped initramfs
+├── linux_repo_Slink    → ...   # Symlink to Linux kernel source
+├── uboot_repo_Slink    → ...   # Symlink to U-Boot source
+├── busybox_repo_Slink  → ...   # Symlink to BusyBox source
+└── sd_card/
+    ├── bootfs/                 # Boot partition (FAT32)
+    │   ├── bootcode.bin        # RPi first-stage bootloader
+    │   ├── start.elf           # RPi second-stage bootloader
+    │   ├── fixup.dat           # RPi firmware fixup
+    │   ├── config.txt          # RPi configuration
+    │   ├── cmdline.txt         # Kernel command line (unused with U-Boot)
+    │   ├── u-boot.bin          # U-Boot bootloader
+    │   ├── boot.scr            # U-Boot boot script
+    │   ├── Image               # Linux kernel image (aarch64)
+    │   ├── bcm2710-rpi-3-b-plus.dtb  # Device tree blob
+    │   └── uInitramfs          # Initramfs image (optional)
+    └── rootfs/                 # Root partition (ext4)
+        ├── bin/                # BusyBox binaries
+        ├── sbin/               # System binaries (init → busybox)
+        ├── lib/                # Shared libraries (from toolchain sysroot)
+        ├── lib64 → lib         # lib64 symlink
+        ├── usr/                # User binaries and libraries
+        ├── etc/                # Configuration files
+        │   ├── inittab         # BusyBox init configuration
+        │   └── init.d/
+        │       └── rcS         # System startup script
+        ├── dev/                # Device nodes
+        ├── proc/               # Proc filesystem mount point
+        ├── sys/                # Sysfs mount point
+        ├── tmp/                # Temporary files
+        └── home/               # Home directories
+```
+
+---
+
+## 1. Repository Setup
+
+### Create Symbolic Links
+
+Link to the source repositories to keep the project organized:
+
+```bash
+ln -s /path/to/u-boot              uboot_repo_Slink
+ln -s /path/to/linux                linux_repo_Slink
+ln -s /path/to/busybox              busybox_repo_Slink
+```
+
+### Create SD Card Directory Structure
+
+```bash
 mkdir -p sd_card/bootfs
 mkdir -p sd_card/rootfs
+```
 
-// copy the boot files to the boot partition
-// i put it at /media/gemy/Linux_Workspace/ITI/Eng_Fady/Embedded_Linux_WS/rpi_boot_files
+---
 
-sudo cp /media/gemy/Linux_Workspace/ITI/Eng_Fady/Embedded_Linux_WS/rpi_boot_files/* sd_card/bootfs/
+## 2. Build the Linux Kernel
 
-😊 [17:00:00] gemy@gemy-Precision-7530 /media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/Embedded_Linux/Flash_Linux_image Task1_adminLinux ➜ ls sd_card/bootfs/
-bootcode.bin  cmdline.txt  config.txt  fixup4cd.dat  fixup4.dat  fixup4db.dat  fixup4x.dat  fixup_cd.dat  fixup.dat  fixup_db.dat  fixup_x.dat  start4.elf  start.elf
+### Clone the Raspberry Pi Kernel
 
+```bash
+git clone --depth 1 https://github.com/raspberrypi/linux.git
+cd linux
+```
 
->> 3. copy the u-boot binary to the boot partition
+### Configure and Build
 
-sudo cp /media/gemy/Linux_Workspace/ITI/Eng_Fady/Embedded_Linux_WS/uboot_repo_Slink/u-boot.bin sd_card/bootfs/
+```bash
+# Configure for RPi3 B+
+make ARCH=arm64 CROSS_COMPILE=aarch64-rpi3-linux-gnu- bcm2710_defconfig
 
->> 4. copy the image and dtbo files to the boot partition
-// copy the linux kernel image to the boot partition
-sudo cp /media/gemy/Linux_Workspace/ITI/Eng_Fady/Embedded_Linux_WS/linux_repo_Slink/arch/arm/boot/Image sd_card/bootfs/
+# Build kernel image and device tree blobs
+make ARCH=arm64 CROSS_COMPILE=aarch64-rpi3-linux-gnu- -j$(nproc) Image dtbs
 
-// copy the dtbo files to the boot partition
-sudo cp /media/gemy/Linux_Workspace/ITI/Eng_Fady/Embedded_Linux_WS/linux_repo_Slink/arch/arm/boot/dts/bcm2710-rpi-3-b-plus.dtb sd_card/bootfs/
+# Install kernel modules to rootfs
+make ARCH=arm64 CROSS_COMPILE=aarch64-rpi3-linux-gnu- \
+    modules_install INSTALL_MOD_PATH=../sd_card/rootfs/
+```
 
->> 5. create boot script file to load the kernel and dtbo files using u-boot
-// create the bootscript file using mkimage
-alias mkimage=/media/gemy/Linux_Workspace/ITI/Eng_Fady/Embedded_Linux_WS/uboot/u-boot/tools/mkimage
+### Copy Build Artifacts
 
-sudo mkimage -A arm64 -T script -C none -n "Boot Script" -d boot.cmd boot.scr
+```bash
+# To boot partition
+cp arch/arm64/boot/Image                                    ../sd_card/bootfs/
+cp arch/arm64/boot/dts/broadcom/bcm2710-rpi-3-b-plus.dtb   ../sd_card/bootfs/
 
-// put the bootscript file in the boot partition
+# To TFTP server (for network boot)
+sudo cp arch/arm64/boot/Image                                   /srv/tftp/
+sudo cp arch/arm64/boot/dts/broadcom/bcm2710-rpi-3-b-plus.dtb  /srv/tftp/
+```
+
+---
+
+## 3. Build BusyBox Root Filesystem
+
+### Copy BusyBox Binaries
+
+```bash
+cp -r busybox_repo_Slink/_install/bin/  sd_card/rootfs/
+cp -r busybox_repo_Slink/_install/sbin/ sd_card/rootfs/
+cp -r busybox_repo_Slink/_install/usr/  sd_card/rootfs/
+```
+
+### Create Required Directories
+
+```bash
+mkdir -p sd_card/rootfs/{dev,proc,sys,etc,home,tmp}
+```
+
+### Copy Shared Libraries from Toolchain Sysroot
+
+```bash
+SYSROOT=~/x-tools/aarch64-rpi3-linux-gnu/aarch64-rpi3-linux-gnu/sysroot
+
+cp -r ${SYSROOT}/lib       sd_card/rootfs/
+sudo cp -r ${SYSROOT}/usr/lib  sd_card/rootfs/usr/
+
+# Create lib64 symlink (required for aarch64)
+cd sd_card/rootfs
+ln -sf lib lib64
+cd -
+```
+
+### Set Permissions
+
+```bash
+sudo chown -R root:root sd_card/rootfs/
+sudo chmod -R 755 sd_card/rootfs/
+```
+
+### Create Init Configuration
+
+**`sd_card/rootfs/etc/inittab`**:
+
+```bash
+# Start system initialization script
+::sysinit:/etc/init.d/rcS
+
+# Launch interactive shell on serial console
+# askfirst: displays "Please press Enter to activate this console"
+ttyS0::askfirst:-/bin/sh
+
+# Handle Ctrl+Alt+Del
+::ctrlaltdel:/sbin/reboot
+
+# Clean shutdown
+::shutdown:/bin/umount -a -r
+```
+
+### Create Startup Script
+
+```bash
+mkdir -p sd_card/rootfs/etc/init.d
+```
+
+**`sd_card/rootfs/etc/init.d/rcS`**:
+
+```bash
+#!/bin/sh
+
+# Mount devtmpfs (required for initramfs; already mounted for SD/NFS boot)
+mount -t devtmpfs devtmpfs /dev
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t tmpfs tmpfs /tmp
+
+echo "System booted successfully!"
+```
+
+```bash
+chmod +x sd_card/rootfs/etc/init.d/rcS
+```
+
+---
+
+## 4. Prepare Boot Files
+
+### Copy Raspberry Pi Firmware
+
+```bash
+# bootcode.bin, start.elf, fixup.dat, config.txt
+sudo cp /path/to/rpi_boot_files/* sd_card/bootfs/
+```
+
+### Copy U-Boot Binary
+
+```bash
+sudo cp uboot_repo_Slink/u-boot.bin sd_card/bootfs/
+```
+
+### Create and Compile Boot Script
+
+Write your boot script in `boot.cmd`, then compile:
+
+```bash
+mkimage -A arm64 -T script -C none -n "Boot Script" -d boot.cmd boot.scr
 sudo cp boot.scr sd_card/bootfs/
+```
 
->> 6. copy the root filesystem files to the root partition
+---
 
+## 5. Boot Methods
 
-// after i finish copying the files to the boot partition, i will put the sdcard in the card reader and by default it will be mounted 
-// run lsblk to check the name of the sdcard and the partitions
+### 5.1 SD Card Boot
 
+Boot entirely from the SD card — kernel, DTB, and rootfs all on the card.
 
-sudo rsync -aHAX --progress sd_card/bootfs/ <name_of_sdcard_partition_for_boot>
-sudo rsync -aHAX --progress sd_card/rootfs/ <name_of_sdcard_partition_for_root>
+**U-Boot bootargs:**
 
+```
+setenv bootargs "console=ttyS0,115200 8250.nr_uarts=1 root=/dev/mmcblk0p2 rootfstype=ext4 rw rootwait init=/sbin/init"
+```
 
-// after i finish copying the files, i will unmount the sdcard and eject it
-sudo umount <name_of_sdcard_partition_for_boot>
-sudo umount <name_of_sdcard_partition_for_root>
+---
 
+### 5.2 TFTP Boot
 
+Load kernel and DTB from a TFTP server over the network.
 
-=====================================================================================================================
->> prepare to boot from the tftp
+#### Host Setup
 
-// you must put this line in the /etc/default/tftpd-hpa file to configure the tftp server to serve the files from the tftp directory and to allow creating new files in it
-😊 [18:29:09] gemy@gemy-Precision-7530 ~  ➜ cat /etc/default/tftpd-hpa 
-# /etc/default/tftpd-hpa
+```bash
+# Install TFTP server
+sudo apt install tftpd-hpa
 
+# Configure /etc/default/tftpd-hpa
 TFTP_USERNAME="tftp"
 TFTP_DIRECTORY="/srv/tftp"
 TFTP_ADDRESS=":69"
 TFTP_OPTIONS="--secure --create"
 
-install tftpd-hpa
-sudo apt install tftpd-hpa
+# Start the server
+sudo systemctl restart tftpd-hpa
 
-// after installing the tftp server, you must start it using the following command
-in.tftpd --listen --user tftp --address :69 --secure --create /srv/tftp 
-// systemctl restart tftpd-hpa
+# Copy files to TFTP directory
+sudo cp Image bcm2710-rpi-3-b-plus.dtb /srv/tftp/
 
-// put the Image and dtbo files in the tftp directory
-sudo cp /media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/Embedded_Linux/Flash_Linux_image/linux_repo_Slink/arch/arm64/boot/dts/broadcom/bcm2710-rpi-3-b-plus.dtb /srv/tftp/
-sudo cp /media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/Embedded_Linux/Flash_Linux_image/linux_repo_Slink/arch/arm64/boot/Image /srv/tftp/
-
-// set the ip address of the tftp server to the ip address of the host machine
- sudo ip addr add 192.168.1.50/24 dev eno1
-
-======================================================================================================================
->> prepare the kernel image and the dtbo files
-
-
-// you have two options to get the main repo of linus tervalds or you can get the linux kernel of certain board from the raspberry pi github repository
-git clone --depth 1 https://github.com/raspberrypi/linux.git
-
-// after cloning the linux kernel repository, you must configure it to build the kernel image and the dtbo files for the raspberry pi 3 b+ board
-cd linux
-
-// configure the kernel to build the image and the dtbo files for the raspberry pi 3 b+ board
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2710_defconfig
-// after configuring the kernel, you can build the kernel image and the dtbo files using the following command
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc) Image dtbs
-// now generate the kernel modules using the following command
-make modules_install INSTALL_MOD_PATH=../sd_card/rootfs/
-
-// after building the kernel image and the dtbo files, you can copy them to the tftp directory to be served by the tftp server
-sudo cp arch/arm64/boot/Image /srv/tftp/
-sudo cp arch/arm64/boot/dts/broadcom/bcm2710-rpi-3-b-plus.dtb /srv/tftp/
-
-OR 
-// copy to the boot partition of the sdcard to be loaded by u-boot
-sudo cp arch/arm64/boot/Image /media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/Embedded_Linux/Flash_Linux_image/sd_card/bootfs/
-sudo cp arch/arm64/boot/dts/broadcom/bcm2710-rpi-3-b-plus.dtb /media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/Embedded_Linux/Flash_Linux_image/sd_card/bootfs/
-
-// copy the kernel modules to the root filesystem of the sdcard
-sudo cp -r /media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/Embedded_Linux/Flash_Linux_image/sd_card/rootfs/lib/modules/5.15.0-1018-raspi /media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/Embedded_Linux/Flash_Linux_image/sd_card/rootfs/lib/modules/5.15.0-1018-raspi 
-
-
-
-=======================================================================================================================
->> get the rootfs from nfs 
-// @the host machine
-sudo apt update
-sudo apt install nfs-kernel-server
-
-sudo vim /etc/exports
-// add the following line to the /etc/exports file to export the rootfs directory to the network
-/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/Embedded_Linux/Flash_Linux_image/sd_card/rootfs 192.168.1.100(rw,sync,no_subtree_check,no_root_squash)
-// after adding the line to the /etc/exports file, you must restart the nfs server using the following command
-/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/Embedded_Linux/Flash_Linux_image/sd_card/rootfs 192.168.1.100(rw,sync,no_subtree_check,no_root_squash)
-sudo exportfs -ra
-sudo exportfs -v
-
-// change the uboot bootargs to use nfsroot instead of root=/dev/mmcblk0p2
-setenv bootargs "console=ttyS0 8250.nr_uarts=1,115200 root=/dev/nfs rw nfsroot=192.168.1.50:/media/gemy/Linux_Workspace/ITI/Eng_Fady/Tasks/Embedded_Linux/Embedded_Linux/Flash_Linux_image/sd_card/rootfs,v3,tcp ip=192.168.1.100:192.168.1.50:192.168.1.1:255.255.255.0::eth0:off init=/init"
-
-// to make sure the server ip
+# Configure network interface (direct cable to Pi)
 sudo nmcli device set eno1 managed no
 sudo ip addr flush dev eno1
 sudo ip addr add 192.168.1.50/24 dev eno1
 sudo ip link set eno1 up
+```
 
+#### Network Configuration
 
-=======================================================================================================================
->> prepare the rootfs files
-// 1. copy the busybox files to the rootfs directory
-cp -r busybox_repo_Slink/_install/sbin/ sd_card/rootfs
-cp -r busybox_repo_Slink/_install/bin/ sd_card/rootfs
-cp -r busybox_repo_Slink/_install/usr/ sd_card/rootfs
+```
+Host PC (TFTP Server):  192.168.1.50
+Raspberry Pi:           192.168.1.100
+Gateway:                192.168.1.1
+```
 
-// 2. create the necessary directories in the rootfs directory
-mkdir -p sd_card/rootfs/{dev,proc,sys,etc,home,tmp,}
+---
 
-// 3. copy the libs files to the rootfs directory
-sudo cp -r ~/x-tools/aarch64-rpi3-linux-gnu/aarch64-rpi3-linux-gnu/sysroot/usr/lib sd_card/rootfs/usr/
-cp -r ~/x-tools/aarch64-rpi3-linux-gnu/aarch64-rpi3-linux-gnu/sysroot/lib sd_card/rootfs/ 
+### 5.3 NFS Root Filesystem
 
-// then create symbolic link for lib64 to point to lib using the following command
-cd sd_card/rootfs
-ln -s lib lib64
-cd -
+Mount the root filesystem from an NFS server over the network — ideal for development (edit files on host, instantly available on target).
 
-// after copying the libs files to the rootfs directory, you must change the ownership of the files to the root user using the following command
-sudo chown -R root:root sd_card/rootfs/
+#### Host Setup
 
-// also the permissions of the files must be changed to 755 using the following command (755 means that the owner has read, write, and execute permissions, while the group and others have read and execute permissions)
-sudo chmod -R 755 sd_card/rootfs/
+```bash
+# Install NFS server
+sudo apt install nfs-kernel-server
 
-// 4. create the init configuration file in the rootfs directory
-sudo vim sd_card/rootfs/etc/inittab
-// add the following lines to the /etc/inittab file to configure the init system to start the necessary services and to provide a login prompt on the console
+# Add export to /etc/exports
+echo '/path/to/sd_card/rootfs 192.168.1.100(rw,sync,no_subtree_check,no_root_squash)' | \
+    sudo tee -a /etc/exports
 
-# 1.run the rcS script to start the necessary services, sysinit is the first process that will be run by the kernel after it finishes loading, and it will run the rcS script to start the necessary services
-::sysinit:/etc/init.d/rcS
-# 2. run the shell on the console, askfirst means that the shell will be started on the console only if there is no other process running on the console, and ttyS0 is the first UART that we are using for the console output{you will press enter to get the login prompt on the console}
-ttyS0::askfirst:-/bin/sh
-# 3. configure the system to reboot when the user presses Ctrl+Alt+Del, providing a convenient way to restart the system if needed 
-::ctrlaltdel:/sbin/reboot
-# 4. configure the system to shut down when the user types "poweroff" or "halt", allowing for umounting the filesystems and performing any necessary cleanup before powering off the system
-::shutdown:/bin/umount -a -r
+# Apply and verify
+sudo exportfs -ra
+sudo exportfs -v
+```
 
-// 5. create the rcS script in the rootfs directory
-mkdir sd_card/rootfs/etc/init.d
-sudo vim sd_card/rootfs/etc/init.d/rcS
-#!/bin/sh
-# at the initramfs the /dev isn't mounted automatically, so we need to mount it manually using the following command
-# at the sdcard or nfs rootfs, the /dev is mounted automatically by the kernel, so you don't need to mount it manually
-mount -t devtmpfs devtmpfs /dev 
-mount -t proc proc /proc
-mount -t sysfs sysfs /sys
-mount -t tmpfs tmpfs /tmp
-echo "System booted successfully!"
+#### U-Boot bootargs
 
-=========================================================================================================================
->> prepatre the initramfs image
-// create the initramfs image using the following command
-// you must use the find . not find sd_card/rootfs because the cpio command will create the initramfs image with the root directory as the current directory, so you must be in the root directory of the rootfs to create the initramfs image correctly
+```
+setenv bootargs "console=ttyS0,115200 8250.nr_uarts=1 root=/dev/nfs rw nfsroot=192.168.1.50:/path/to/sd_card/rootfs,v3,tcp ip=192.168.1.100:192.168.1.50:192.168.1.1:255.255.255.0::eth0:off init=/sbin/init"
+```
+
+---
+
+### 5.4 Initramfs Boot
+
+Package the entire rootfs into a compressed cpio archive loaded into RAM — fully self-contained, no storage needed after boot.
+
+#### Build Initramfs
+
+```bash
+# IMPORTANT: must run from INSIDE the rootfs directory
 cd sd_card/rootfs
 find . | cpio -H newc -ov 2>/dev/null | gzip > ../../initramfs.cpio.gz
 cd -
-mkimage -A arm64 -T ramdisk -C gzip -n "Initramfs Image" -d initramfs.cpio.gz uInitramfs
+
+# Wrap with U-Boot header
+mkimage -A arm64 -T ramdisk -C gzip \
+    -n "Initramfs Image" \
+    -d initramfs.cpio.gz uInitramfs
+
+# Copy to boot partition and/or TFTP
 cp uInitramfs sd_card/bootfs/
 sudo cp uInitramfs /srv/tftp/
-========================================================================================================================
->> after finishing 
-rsync -a --delete sd_card/bootfs/ /media/gemy/5AD0-4B5B/
-rsync -a --delete sd_card/rootfs/ /media/gemy/347cf6d6-9747-4970-ba84-5814c30b1fa6
-umount /media/gemy/5AD0-4B5B
-umount /media/gemy/347cf6d6-9747-4970-ba84-5814c30b1fa6
+```
 
+> ⚠️ **Common mistake:** Running `find` from outside the rootfs creates wrong paths (e.g., `sd_card/rootfs/bin/` instead of `./bin/`). Always `cd` into the rootfs first!
+
+#### U-Boot bootargs
+
+```
+setenv bootargs "console=ttyS0,115200 8250.nr_uarts=1 loglevel=8 panic=5 rdinit=/sbin/init"
+```
+
+> Note: No `root=` parameter needed — the kernel uses the initramfs as the root filesystem.
+
+---
+
+## 6. Flash to SD Card
+
+### Partition the SD Card
+
+The SD card needs two partitions:
+
+| Partition | Type | Size | Mount |
+|-----------|------|------|-------|
+| p1 | FAT32 (W95) | ~128 MB | `/boot` |
+| p2 | ext4 (Linux) | Remaining | `/` |
+
+### Copy Files to SD Card
+
+```bash
+# Insert SD card and check device name
+lsblk
+
+# Copy boot files
+sudo rsync -aHAX --progress sd_card/bootfs/ /media/$USER/<boot_partition>/
+
+# Copy root filesystem
+sudo rsync -aHAX --progress sd_card/rootfs/ /media/$USER/<root_partition>/
+
+# Safely eject
+sudo umount /media/$USER/<boot_partition>
+sudo umount /media/$USER/<root_partition>
+```
+
+---
+
+## Serial Console Configuration
+
+### RPi3 B+ UART Setup
+
+The RPi3 B+ has two UARTs. By default, the full PL011 UART is assigned to Bluetooth. To use the mini UART for console:
+
+**`config.txt`:**
+
+```
+enable_uart=1
+dtoverlay=miniuart-bt
+```
+
+| UART | Device | Usage |
+|------|--------|-------|
+| Mini UART (8250) | `ttyS0` | Console (GPIO 14/15) |
+| PL011 | `ttyAMA1` | Bluetooth (swapped) |
+
+### Wiring
+
+```
+USB-Serial Adapter         RPi3 GPIO Header
+──────────────────         ─────────────────
+TX  ──────────────────────  RX  (Pin 10 / GPIO 15)
+RX  ──────────────────────  TX  (Pin 8  / GPIO 14)
+GND ──────────────────────  GND (Pin 6)
+```
+
+> ⚠️ Do NOT connect VCC if the Pi is powered separately.
+
+### Connect via Serial
+
+```bash
+# Using picocom (recommended)
+sudo picocom -b 115200 /dev/ttyUSB0 --flow none
+
+# Using minicom (disable hardware flow control!)
+sudo minicom -b 115200 -D /dev/ttyUSB0
+# Ctrl+A → O → Serial port setup → F (Hardware Flow Control: No)
+```
+
+---
+
+## Troubleshooting
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| No serial output | Wrong UART in bootargs | Use `console=ttyS0,115200` with `enable_uart=1` in config.txt |
+| Output but no input | Hardware flow control enabled | Disable in minicom: `Ctrl+A → O → F` |
+| Output but no input | TX/RX wires swapped | Swap TX and RX on the adapter side |
+| `can't open /dev/ttyS0` | devtmpfs not mounted | Add `mount -t devtmpfs devtmpfs /dev` as first line in `rcS` |
+| `No working init found` | Missing `/sbin/init` | Check rootfs structure, ensure busybox is installed |
+| `exitcode=0x00007f00` | Missing shared libraries | Copy libs from toolchain sysroot or compile with `-static` |
+| NFS mount fails | Wrong export path or IP | Verify `/etc/exports`, run `exportfs -v`, check IP with `ip addr` |
+| NetworkManager changes IP | NM overrides manual config | Run `sudo nmcli device set eno1 managed no` |
+| Initramfs wrong paths | `find` run from wrong directory | Must `cd` into rootfs before running `find . \| cpio ...` |
+
+---
+
+## Boot Flow
+
+```
+Power On
+  ↓
+bootcode.bin (GPU loads from SD)
+  ↓
+start.elf (GPU firmware)
+  ↓
+config.txt → loads u-boot.bin (kernel=u-boot.bin)
+  ↓
+U-Boot → executes boot.scr
+  ↓
+Load Image + DTB + initramfs (from SD/TFTP)
+  ↓
+Linux Kernel boots
+  ↓
+Mount rootfs (SD / NFS / initramfs)
+  ↓
+Run /sbin/init (BusyBox)
+  ↓
+/etc/init.d/rcS → mount filesystems
+  ↓
+Interactive shell on ttyS0
+```
+
+---
+
+## License
+
+This project is for educational purposes as part of the ITI Embedded Linux track.
