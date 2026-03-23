@@ -1,7 +1,9 @@
+
+
 # 1.run the rcS script to start the necessary services, sysinit is the first process that will be run by the kernel after it finishes loading, and it will run the rcS script to start the necessary services
 ::sysinit:/etc/init.d/rcS
 
-# 2. run the shell on the console, respawn is used to automatically restart the shell if it exits for any reason, ensuring that the user always has access to a shell on the console
+# 2. run the shell on the console, askfirst means that the shell will be started on the console only if there is no other process running on the console, and ttyS0 is the first UART that we are using for the console output{you will press enter to get the login prompt on the console}
 ttyS0::askfirst:-/bin/sh
 
 # 3. configure the system to reboot when the user presses Ctrl+Alt+Del, providing a convenient way to restart the system if needed 
@@ -9,4 +11,3 @@ ttyS0::askfirst:-/bin/sh
 
 # 4. configure the system to shut down when the user types "poweroff" or "halt", allowing for umounting the filesystems and performing any necessary cleanup before powering off the system
 ::shutdown:/bin/umount -a -r
-~                                  

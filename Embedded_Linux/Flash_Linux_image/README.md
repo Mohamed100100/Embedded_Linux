@@ -169,28 +169,43 @@ sudo chmod -R 755 sd_card/rootfs/
 
 // 4. create the init configuration file in the rootfs directory
 sudo vim sd_card/rootfs/etc/inittab
-
 // add the following lines to the /etc/inittab file to configure the init system to start the necessary services and to provide a login prompt on the console
-// 1.run the rcS script to start the necessary services, sysinit is the first process that will be run by the kernel after it finishes loading, and it will run the rcS script to start the necessary services
+
+# 1.run the rcS script to start the necessary services, sysinit is the first process that will be run by the kernel after it finishes loading, and it will run the rcS script to start the necessary services
 ::sysinit:/etc/init.d/rcS
-// 2. run the shell on the console, askfirst means that the shell will be started on the console only if there is no other process running on the console, and ttyS0 is the first UART that we are using for the console output{you will press enter to get the login prompt on the console}
+# 2. run the shell on the console, askfirst means that the shell will be started on the console only if there is no other process running on the console, and ttyS0 is the first UART that we are using for the console output{you will press enter to get the login prompt on the console}
 ttyS0::askfirst:-/bin/sh
-// 3. configure the system to reboot when the user presses Ctrl+Alt+Del, providing a convenient way to restart the system if needed 
+# 3. configure the system to reboot when the user presses Ctrl+Alt+Del, providing a convenient way to restart the system if needed 
 ::ctrlaltdel:/sbin/reboot
-// 4. configure the system to shut down when the user types "poweroff" or "halt", allowing for umounting the filesystems and performing any necessary cleanup before powering off the system
+# 4. configure the system to shut down when the user types "poweroff" or "halt", allowing for umounting the filesystems and performing any necessary cleanup before powering off the system
 ::shutdown:/bin/umount -a -r
 
 // 5. create the rcS script in the rootfs directory
 mkdir sd_card/rootfs/etc/init.d
 sudo vim sd_card/rootfs/etc/init.d/rcS
-
 #!/bin/sh
-# mount -t devtmpfs devtmpfs /dev << happens automatically with devtmpfs, so we don't need to do it manually
+# at the initramfs the /dev isn't mounted automatically, so we need to mount it manually using the following command
+# at the sdcard or nfs rootfs, the /dev is mounted automatically by the kernel, so you don't need to mount it manually
+mount -t devtmpfs devtmpfs /dev 
 mount -t proc proc /proc
 mount -t sysfs sysfs /sys
 mount -t tmpfs tmpfs /tmp
 echo "System booted successfully!"
 
-
-
+=========================================================================================================================
+>> prepatre the initramfs image
+// create the initramfs image using the following command
+// you must use the find . not find sd_card/rootfs because the cpio command will create the initramfs image with the root directory as the current directory, so you must be in the root directory of the rootfs to create the initramfs image correctly
+cd sd_card/rootfs
+find . | cpio -H newc -ov 2>/dev/null | gzip > ../../initramfs.cpio.gz
+cd -
+mkimage -A arm64 -T ramdisk -C gzip -n "Initramfs Image" -d initramfs.cpio.gz uInitramfs
+cp uInitramfs sd_card/bootfs/
+sudo cp uInitramfs /srv/tftp/
+========================================================================================================================
+>> after finishing 
+rsync -a --delete sd_card/bootfs/ /media/gemy/5AD0-4B5B/
+rsync -a --delete sd_card/rootfs/ /media/gemy/347cf6d6-9747-4970-ba84-5814c30b1fa6
+umount /media/gemy/5AD0-4B5B
+umount /media/gemy/347cf6d6-9747-4970-ba84-5814c30b1fa6
 
