@@ -4,6 +4,16 @@ A minimal initramfs implementation that allows users to select between SD card a
 
 ---
 
+## Demo Screenshots
+
+### SD Card Root Filesystem Boot
+![SD Card Rootfs Boot](sd_card_rootfs.png)
+
+### NFS Root Filesystem Boot
+![NFS Rootfs Boot](nfs_rootfs.png)
+
+---
+
 ## Table of Contents
 
 - [Overview](#overview)
@@ -32,6 +42,60 @@ This project implements a boot selection mechanism using initramfs. The initramf
 2. Presents a menu for the user to choose the root filesystem source
 3. Mounts the selected root filesystem
 4. Switches to the new root and continues the boot process
+
+### System Flow
+
+```
+┌─────────────────┐
+│  Kernel boots   │
+│ loads initramfs │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Initramfs runs  │
+│ /sbin/init      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Mount /proc,    │
+│ /sys, /dev      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Display boot   │
+│     menu        │
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    ▼         ▼
+┌───────┐ ┌───────┐
+│  SD   │ │  NFS  │
+│ Card  │ │ Boot  │
+└───┬───┘ └───┬───┘
+    │         │
+    └────┬────┘
+         │
+         ▼
+┌─────────────────┐
+│ Mount selected  │
+│   root filesystem│
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ chroot to new   │
+│ root, exec init │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ System boots    │
+│   normally      │
+└─────────────────┘
+```
 
 ---
 
@@ -468,6 +532,8 @@ Edit the configuration variables in `/etc/init.d/rcS` to match your setup:
 | `/sbin/init not found` | Verify root filesystem contains BusyBox with init |
 | `Device or resource busy` | Harmless warning, filesystems already mounted |
 | Kernel panic after switch | Ensure rootfs BusyBox is static ARM64 |
+| `switch_root` fails | Use `chroot` instead (this implementation uses chroot) |
+| PID is not 1 | Ensure `/sbin/init` script uses `exec` to call rcS |
 
 ---
 
@@ -476,3 +542,7 @@ Edit the configuration variables in `/etc/init.d/rcS` to match your setup:
 This project is provided as-is for educational purposes.
 
 ---
+
+## Author
+
+Eng Gemy :) 
