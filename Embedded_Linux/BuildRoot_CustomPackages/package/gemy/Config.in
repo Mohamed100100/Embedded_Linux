@@ -1,0 +1,23 @@
+# -----------------------------------------------------------------------------
+# package/gemy/Config.in
+# -----------------------------------------------------------------------------
+#
+# This file creates a custom top-level menu inside Buildroot menuconfig.
+#
+# The purpose of this file is only to group our custom packages under
+# one menu named "Gemy_Packages".
+#
+# It does not define the calculator package itself.
+# Instead, it loads the calculator package Config.in file.
+#
+# -----------------------------------------------------------------------------
+
+# Create a new menu in menuconfig named "Gemy_Packages".
+menu "Gemy_Packages"
+
+    # Load the calculator package configuration file.
+    # This makes the calculator package appear inside this menu.
+    source "package/calculator/Config.in"
+
+# End of custom menu.
+endmenu

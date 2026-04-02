@@ -1,0 +1,78 @@
+# -----------------------------------------------------------------------------
+# package/calculator/Config.in
+# -----------------------------------------------------------------------------
+#
+# This file defines the calculator package entry in Buildroot menuconfig.
+#
+# This application:
+#   - uses Qt6
+#   - uses QML / Qt Quick
+#   - runs using the linuxfb platform plugin
+#   - does not use X11
+#   - does not use xcb
+#
+# The calculator package depends on qt6base.
+# So the user must first enable qt6base in menuconfig.
+# After that, the calculator package becomes selectable.
+#
+# A note is shown in menuconfig if qt6base is not enabled yet.
+#
+# -----------------------------------------------------------------------------
+
+# Define a Buildroot package option named BR2_PACKAGE_CALCULATOR.
+config BR2_PACKAGE_CALCULATOR
+
+    # Create a yes/no option in menuconfig with label "calculator".
+    bool "calculator"
+
+    # This package depends on qt6base being enabled first.
+    # If qt6base is not enabled, this package will not be selectable.
+    depends on BR2_PACKAGE_QT6BASE
+
+    # Automatically select Qt Declarative module.
+    # This is required because the application uses QML.
+    select BR2_PACKAGE_QT6DECLARATIVE
+
+    # Automatically select Qt Quick support.
+    # This is required for graphical interfaces using Qt Quick/QML.
+    select BR2_PACKAGE_QT6DECLARATIVE_QUICK
+
+    # Automatically select Qt shader tools.
+    # Qt Quick rendering requires shader support.
+    select BR2_PACKAGE_QT6SHADERTOOLS
+
+    # Automatically select fontconfig.
+    # This helps the system find and configure fonts at runtime.
+    select BR2_PACKAGE_FONTCONFIG
+
+    # Automatically select FreeType.
+    # This provides font rendering support.
+    select BR2_PACKAGE_FREETYPE
+
+    # Automatically select HarfBuzz.
+    # This is used for text shaping and proper text rendering.
+    select BR2_PACKAGE_HARFBUZZ
+
+    # Automatically select DejaVu fonts.
+    # This ensures default fonts are available for numbers and text.
+    select BR2_PACKAGE_DEJAVU
+
+    # Help text shown in menuconfig when the user highlights this package.
+    help
+      Calculator is a Qt6/QML calculator application.
+
+      This application is configured to run using the Qt linuxfb
+      platform plugin.
+
+      It does not require X11 or xcb.
+
+      Before enabling this package, enable qt6base first from:
+        Target packages
+          -> Graphic libraries and applications
+            -> qt6
+              -> qt6base
+
+# Show a visible note in menuconfig when qt6base is not enabled.
+# This helps the user understand why the calculator package is not available.
+comment "NOTE: Enable qt6base first, then return here to enable calculator"
+    depends on !BR2_PACKAGE_QT6BASE
